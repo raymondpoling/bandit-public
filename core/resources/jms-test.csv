@@ -1,0 +1,15 @@
+publish to topic|jms|publish|topic|resources/xmls.xml
+publish to queue|jms|publish|queue|resources/xmldir
+
+read from topic|jms|consume|topic|10|30|kitty
+read from queue|jms|consume|queue|10|30|mice
+
+# Seed the next set of tests!
+publish to topic|jms|publish|topic|resources/xmls.xml
+publish to queue|jms|publish|queue|resources/xmldir
+
+fail read topic|jms|consume|topic|10|60|dogs
+fail read queue|jms|consume|topic|10|60|dogs
+
+# fail on trying to read what won't be there
+fail read topic|jms|consume|topic|30|60

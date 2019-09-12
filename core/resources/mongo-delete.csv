@@ -1,0 +1,2 @@
+# check we can remove all records from a db
+remove all records|mongo|remove|smcdb|product|{}

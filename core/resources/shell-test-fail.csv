@@ -1,0 +1,3 @@
+# Test to see if the shell works for ls
+ls -lh /test|shell|run|ls -lh /test 
+

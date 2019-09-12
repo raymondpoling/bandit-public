@@ -1,0 +1,1 @@
+Set a dictionary|rest|put|http://localhost:3001/xsd/1.0/Msg.xml|{"path":"/home/ruguer/project/clojure/playlist/playlist-expander/resources/halloween.clj"}

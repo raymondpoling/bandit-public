@@ -1,0 +1,7 @@
+#Count pass|mongo|count|smcdb|product|10|300|{"Xref":{"$exists":true}}
+Verify pass|mongo|exists|smcdb|product|{"_id":12}|1000
+Compare pass|mongo|compare|smcdb|product|{"_id":12}|{"_id":13}|_id|timestamp
+
+Count failed|mongo|count|smcdb|product|9|60|{"Xref":{"$exists":true}}
+Verify failed|mongo|exists|smcdb|product|{"_id":44}|10
+Compare failed|mongo|compare|smcdb|product|{"_id":12}|{"_id":13}|_id

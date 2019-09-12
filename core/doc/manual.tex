@@ -1,0 +1,705 @@
+% Created 2014-11-06 Thu 08:56
+\documentclass[12pt,a4paper,koma]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage[normalem]{ulem}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{amstext}
+\usepackage{hyperref}
+\tolerance=1000
+\usepackage{fullpage}
+\author{Raymond Poling}
+\date{\today}
+\title{Bandit Test Writing Manual}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs 24.3.1 (Org mode 8.0)}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\begin{abstract}
+Bandit is a simple structure for writing correctness tests. It uses a
+simple, straight forward CSV style format for structuring a series of
+synchronous, serial steps.  It is not the purpose of Bandit to perform
+performance tests, which should be mostly asynchronous. Bandit is also
+designed to be an outside observer, which is only able to observe the
+actions of the system(s) under test. It a goal Bandit that except for
+shell scripts, no code should be written to test a system, by using
+simple generic components and simple reasoning.
+\end{abstract}
+
+\section{Introduction to Bandit}
+\label{sec-1}
+
+The format of this document is that each section following this one will
+be written:
+\begin{itemize}
+\item Configuration: A section on the module configurations
+\item Test: Actions and their arguments for each module
+\end{itemize}
+In that vein this portion of the document covers this information in
+brief for all modules.
+
+\subsection{Configuration}
+\label{sec-1-1}
+
+Configuration tests should be written against environments, and tests
+should be as abstracted as possible from these environments. It is
+not always possible, and tests have no mutable features.
+
+Configurations are written as Clojure maps. The reason for this is to
+allow for certain language features, should they be useful, such as
+allowing modules to require functions to be passed in for more
+elaborate capabilities.
+
+In order for modules to be activated, and thus for their features to
+be available in tests, they must minimally be represented with a
+structure:
+\begin{verbatim}
+{ "module" {} }
+\end{verbatim}
+This means that the above module ``module'' has no arguments. A
+better example would be this:
+
+\begin{verbatim}
+{ "rest" {}}
+\end{verbatim}
+As the rest module has no arguments.
+\subsection{Test}
+\label{sec-1-2}
+
+All test modules have the following format:
+\begin{verbatim}
+identifier|module|action|argument{|arguments}*
+\end{verbatim}
+Where:
+\begin{description}
+\item[{identifier}] A string of the writer's choosing to desribe this
+step of the test, intended to aid the readability of output.
+\item[{module}] The module that runs this step.
+\item[{action}] The action the module should perform.
+\item[{argument}] All actions have at least one required argument.
+\item[{arguments}] Most actions take more than one argument, and many
+will take varargs.
+\end{description}
+
+Test steps are performed one after the other. A step will always be completed
+when pass is displayed (although scripts may launch background processes, or
+the system under test could still be processing messages from a message broker).
+
+Tests can also contain blank lines and also any line beginning with \# is
+treated as a comment.
+\section{Rest Module}
+\label{sec-2}
+The rest module allows for testing rest interfaces using the common verbs
+GET, POST, PUT, and DELETE. Each of these are defined as an action.
+
+\subsection{Configuration}
+\label{sec-2-1}
+
+No options, to ativate:
+
+\begin{verbatim}
+{"rest" {}}
+\end{verbatim}
+\subsection{Test}
+\label{sec-2-2}
+
+Actions are one of:
+\begin{enumerate}
+\item get
+\item post
+\item delete
+\item put
+\end{enumerate}
+
+All tests using the rest module will have rest in the second field of the
+test csv. The rest module assumes responses in JSON format.
+
+All actions have the same set of arguments:
+\begin{verbatim}
+url|body|code{|regex}+
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{url}] The url to test.
+\item[{body}] A body to send with the resut query (may be empty).
+\item[{code}] Expected status code (this is tested against a field within the
+returned JSON body).
+\item[{regex}] Regular expressions ran against the result, of which all must pass.
+If regex has a ! as the first character, it will attempt to negate the match.
+\end{description}
+\section{Mongo Module}
+\label{sec-3}
+This module provides a number of features for testing or waiting for data
+in MongoDB.
+
+\subsection{Configuration}
+\label{sec-3-1}
+Example of all features:
+\begin{verbatim}
+{
+  "mongo" {
+    "host" "localhost"
+    "port" 27017
+    "writeable" true
+    "db-user-pass" [{"user" "some"
+      "password" "one"
+      "db" "test"}]
+  }
+}
+\end{verbatim}
+Where:
+\begin{description}
+\item[{host}] The hostname running the mongodb that should be ran against.
+\item[{port}] The port number for mongodb.
+\item[{writeable}] Setting this to true (no quotes) enables destructive mongodb
+operations. In case live tests are setup, this will prevent damaging
+environments by allowing potentially catastrophic operations run. If
+not set, or if set to anything other than \verb~true~.
+\item[{db-user-pass}] The username, password, and database for authorization.
+db :: Database to authenticate against.
+user :: Username to authenticate with.
+password :: Password to authenticate with.
+\end{description}
+\subsection{Test}
+\label{sec-3-2}
+The mongo module has various different actions for dealing with different needs
+on mongodb. Only a handful are potentially destructive, and these actions are
+managed by the *"writeable"* configuration setting.
+
+All actions have the following arguments after the action argument:
+\begin{verbatim}
+db|collection
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{db}] The database to use for this action.
+\item[{collection}] The collection to use for this action.
+\end{description}
+
+All following argument lists will include all arguments, for simplicity
+of reading.
+
+\subsubsection{compare Action}
+\label{sec-3-2-1}
+
+This action compares two different records (excluding certain fields) to see
+if they are the same based on clojure value comparisons. Used to check if a
+sequence of actions is equivalent to simply processing the last document of
+a series in our testing.
+
+Arguments are:
+\begin{verbatim}
+id|mongo|compare|db|collection|query1|query2{|excludes}+
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{query1}] A strict (keys must be wrapped in quotes) JSON query document for
+a single document that has to be compared.
+\item[{query2}] A strict (keys must be wrapped in quotes) JSON query document for
+a single document that has to be compared.
+\item[{excludes}] Fields to be excluded from the comparison. By design \_id must
+be specified minimally, but any number of pipe delimited excludes may be
+included.
+\end{description}
+\subsubsection{count Action}
+\label{sec-3-2-2}
+This action counts all documents in a collection and compares it to an
+expected number of documents.
+
+Arguments are:
+\begin{verbatim}
+id|mongo|count|db|collection|expectation
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{expectation}] The number of documents expected to be in the collection.
+\end{description}
+\subsubsection{exists Action}
+\label{sec-3-2-3}
+Waits for a document to appear in the document, based on a standard query.
+One of the few actions that wait a set maximum time (no minimum) for an
+external action to be completed.
+
+Arguments are:
+\begin{verbatim}
+id|mongo|exists|db|collection|query|wait
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{query}] A strictly formatted JSON document to find the document.
+\item[{wait}] The maximum amount of time to wait for the document to appear
+in the database.
+\end{description}
+\subsubsection{remove Action}
+\label{sec-3-2-4}
+Remove all documents from a mongo db database, based on a query. Requires
+*"writeable"* to be set.
+
+Arguments are:
+\begin{verbatim}
+id|mongo|remove|db|collection{|queries}+
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{queries}] One or more pipe delimitted queries describing the documents
+to remove from the collection.
+\end{description}
+\section{JMS Module}
+\label{sec-4}
+This module provides the ability to both send to and receive from JMS brokers.
+Queues and topics are supported, however durable connections are not. The
+publishers will publish all xml in a blank line separated file, or a set of
+files in a directory. Only two real actions.
+
+\subsection{Configuration}
+\label{sec-4-1}
+JMS currently only supports a single JMS broker endpoint (not queue or topic,
+only the server to which one connects). As this limitation poses problems, it
+is a todo to extend configuration to allow this. Such an extention should not
+impact current tests.
+
+\begin{verbatim}
+{
+  "jms" {
+    "context" {
+      "java.naming.security.principal" "admin"
+      "java.naming.security.credentials" ""
+      "java.naming.factory.initial" "org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+      "java.naming.provider.url" "tcp://localhost:61616"
+      "topic.topic" "topic"
+      "queue.queue" "queue"
+    },
+    "destinations" [{
+      "destination" "topic"
+      "type" "topic"
+      "factory" "TopicConnectionFactory"
+      "producer-consumer" "producer"
+    },{
+      "destination" "queue"
+      "type" "queue"
+      "factory" "QueueConnectionFactory"
+      "producer-consumer" "producer"
+  },{
+      "destination" "topic"
+      "type" "topic"
+      "factory" "TopicConnectionFactory"
+      "producer-consumer" "consumer"
+    },{
+      "destination" "queue"
+      "type" "queue"
+      "factory" "QueueConnectionFactory"
+      "producer-consumer" "consumer"}]
+  }
+}
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{context}] Standard JNDI key value pairs, using the string representation of
+context private static fields. Generally required is:
+\begin{enumerate}
+\item "java.naming.factory.initial" - Context.INITIAL\_CONTEXT\_FACTORY.
+\item "java.naming.provider.url" - Context.PROVIDER\_URL.
+\item "java.naming.security.principal" - Context.SECURITY\_PRINCIPAL
+\item "java.naming.security.credentials" - Context.SECURITY\_CREDENTIALS
+\item "topic.topic" "topic" - Represents a topic such that context lookups will
+work if the resource is undefined currently on the broker for ActiveMQ.
+\end{enumerate}
+\item[{destinations}] A list of destinations that the test can use. In tests,
+a given test destination is identified by its destination and whether it
+publishes or consumes.
+\item[{destination}] The destination object (name of a queue or topics).
+\item[{type}] Whether this destination is a queue or a topic.
+\item[{factory}] Factory object used to construct this destination.
+\item[{producer-consumer}] Whether this object creates or consumes messages. Valid
+values are producer or consumer, as in the key.
+\end{description}
+\subsection{Tests}
+\label{sec-4-2}
+There are only two actions in the module, publish and consume.
+
+\subsubsection{publish Action}
+\label{sec-4-2-1}
+
+The publish action will publish all data from a file or set of files from
+a directory. If more than on set of data resides within a file, it should
+be separated by empty lines.
+
+Action is:
+\begin{verbatim}
+id|jms|publish|destination|file-or-directory
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{destination}] The JMS object as defined by a destination in the config file.
+\item[{file-or-directory}] The file with message body data to send, or a directory
+of such files, separated by blank lines.
+\end{description}
+\subsubsection{consume Action}
+\label{sec-4-2-2}
+Allows for reading a sequend from a JMS destination, and compares it to a
+set of regex of which only one need match.
+
+Arguments are:
+\begin{verbatim}
+id|jms|consume|destination|number{|regex}+
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{destination}] A JMS destination defined in the configuration file,
+as defined by the destination field.
+\item[{number}] The number of messages to consume.
+\item[{regex}] One or more patterns of which received messages must match at
+least one.
+\end{description}
+\section{Shell Module}
+\label{sec-5}
+The shell module invokes commandline arguments and shell scripts with
+arguments, allowing for use of native shell tools to support tests in live
+environments.
+
+\subsection{Configuration}
+\label{sec-5-1}
+No configuration, although a todo is to add a path to a predefined scripts
+directory. To activate configuration must include:
+\begin{verbatim}
+{"shell" {}}
+\end{verbatim}
+\subsection{Test}
+\label{sec-5-2}
+The only action at present is run.
+
+\begin{verbatim}
+id|shell|run|command with arguments
+\end{verbatim}
+
+Where:
+\begin{description}
+\item[{command with arguments}] A command, followed by is arguments, space
+separated. Environment variables cannot be used in the arguments.
+\end{description}
+\section{Websocket Module}
+\label{sec-6}
+The websocket module is a rare stateful module, that allows for the
+testing of websocket services. It is stateful to prevent timeout
+issues, or for messages to queue up without consumption if other
+components are under test.
+
+\subsection{Configuration}
+\label{sec-6-1}
+You do not need to provide an alias to construct a URL, but using
+aliases means that the config file can be setup per environment, and
+tests needn’t change (for tests that can be promoted through
+environments). Urls should be preceded with ws://.
+\begin{verbatim}
+{“websocket” {“some-alias” “beginning of the url”
+“another-alias” “its beginning”}}
+\end{verbatim}
+\subsection{Test}
+\label{sec-6-2}
+
+\subsubsection{open Action}
+\label{sec-6-2-1}
+Opens a websocket connection.
+\begin{verbatim}
+open|alias|url|handshake
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of open connections (need not be
+reflected in config).
+\item[{url}] is either appended to the end of the url referred to in the
+config file reference for that alias, or it will be used as
+is if not defined.
+\item[{handshake}] is a string that will be sent over the websocket.
+\end{description}
+\subsubsection{receive Action}
+\label{sec-6-2-2}
+receive|alias|number|wait|or-pattern
+
+Where:
+\begin{description}
+\item[{alias}] reference to the websocket to send messages on.
+\item[{number}] The numeber of messages to receive form the websocket.
+\item[{wait}] Max amount of time to wait between message receives.
+\item[{or-pattern}] A set of regex patterns, one of which must match each
+received message.
+\end{description}
+\subsubsection{send Action}
+\label{sec-6-2-3}
+send|alias|text
+
+Where:
+\begin{description}
+\item[{alias}] reference to the websocket to send messages to.
+\item[{text}] text to send through web socket.
+\end{description}
+\subsubsection{close Action}
+\label{sec-6-2-4}
+close|alias
+
+Where:
+\begin{description}
+\item[{alias}] reference to the websocket connection to close.
+\end{description}
+
+\section{Kestrel Module}
+\label{sec-7}
+\subsection{Configuration}
+\label{sec-7-1}
+Kestrel uses aliases exclusively. Each alias has a map, which defines
+its servers. Other options could be added to the map in the
+future. Server entries must include the port. Despite the key name,
+only a single server is supported at present.
+\begin{verbatim}
+{“kestrel” {“some-alias” {"servers" “host:port”
+“another-alias” {"servers" “host:port”}}
+\end{verbatim}
+
+\subsection{Test}
+\label{sec-7-2}
+\subsubsection{consume Action}
+\label{sec-7-2-1}
+Consume text only messages from a kestrel queue.
+\begin{verbatim}
+consume|alias|queue|number|wait{|regex}+
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to consume from.
+\item[{number}] the number of messages to pull from Kestrel Queue.
+\item[{wait}] max period of time to wait for a message to become
+available on Kestrel Queue.
+\item[{regex}] One or more patterns to test the text of the message
+against. The patterns are logically ORed together, so that
+if any one passes, they all pass.
+\end{description}
+\subsubsection{bin-consume Action}
+\label{sec-7-2-2}
+\begin{verbatim}
+bin-consume|alias|queue|number|wait
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to consume from.
+\item[{number}] the number of messages to try to consume from Kestrel
+queue.
+\item[{wait}] how long to wait for each message to arrive at the queue.
+\end{description}
+\subsubsection{publish Action}
+\label{sec-7-2-3}
+\begin{verbatim}
+publish|alias|queue|file-or-dir
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to publish to.
+\item[{file-or-directory}] load an xml file or directory of files. Uses
+the same module as jms.
+\end{description}
+\subsubsection{bin-publish Action}
+\label{sec-7-2-4}
+\begin{verbatim}
+bin-publish|alias|queue|file
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to publish to.
+\item[{file}] load a binary file into a Kestrel Queue. At present it will
+load an entire file. Other options may present themselves later.
+\end{description}
+\subsubsection{peek Action}
+\label{sec-7-2-5}
+\begin{verbatim}
+peek|alias|queue|wait{|regex}+
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to peek at.
+\item[{wait}] The period of time to wait for a message to appear on the
+top of the queue.
+\item[{regex}] A list of regex patterns, one of which must match the
+message peeked at from the top of the queue.
+\end{description}
+\subsubsection{delete Action}
+\label{sec-7-2-6}
+\begin{verbatim}
+publish|alias|queue
+\end{verbatim}
+Where:
+\begin{description}
+\item[{alias}] used to keep track of Kestrel connections. Must exist in
+config files.
+\item[{queue}] the name of the queue to delete.
+\end{description}
+\section{Running Tests}
+\label{sec-8}
+To run a test:
+\begin{verbatim}
+cd test/directory # should have the test .csv
+java -jar path/to/bandit.jar bandit.core config.clj test.csv
+\end{verbatim}
+
+It is useful to write scripts to wrap up the configuration, and to move
+into directories holding tests with related data.
+
+NOTE: In lab7 you can use:
+
+\begin{verbatim}
+./check test
+\end{verbatim}
+
+This will move into the directory with the test, and run it, so all
+relative paths will be related directly to the test.csv file.
+\section{Sample Tests}
+\label{sec-9}
+
+\subsection{Simple Product Text}
+\label{sec-9-1}
+\begin{scriptsize}
+\begin{verbatim}
+#Clear everything, just this test
+Remove all product|mongo|remove|smcdb          |product|{}
+Remove journal    |mongo|remove|smcJournal     |product|{}
+Remove historical |mongo|remove|smcHistoricalDb|product|{}
+Remove failed     |mongo|remove|failedMessages |smcFailedMessages|{}
+
+#publish messages to a queue
+publish all xml messages|jms|publish|cmb.cibtech.na.smc_160829_isgcloud.ABS|products.xml
+
+#Verify that all messages are consumed, pause until they are consumed
+Verify exists _id|mongo|exists|smcdb|product|{"_id":"417062831"}|600
+Verify exists _id|mongo|exists|smcdb|product|{"_id":"722591051"}|600
+Verify exists _id|mongo|exists|smcdb|product|{"_id":"990415051"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"141895090"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"141884611"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"141907120"}|600
+
+#Verify counts
+Verify 9244 messages in smcdb|mongo|count|smcdb|product|9244|{}
+Verify 756 messages in failedMessages|mongo|count|failedMessages|smcFailedMessages|756|{}
+\end{verbatim}
+\end{scriptsize}
+\subsection{Failed Messages Test}
+\label{sec-9-2}
+\begin{scriptsize}
+\begin{verbatim}
+#Clear everything, just this test
+Remove all product|mongo|remove|smcdb          |product|{}
+Remove journal    |mongo|remove|smcJournal     |product|{}
+Remove historical |mongo|remove|smcHistoricalDb|product|{}
+Remove failed     |mongo|remove|failedMessages |smcFailedMessages|{}
+
+#Backup current properties
+Backup properties|shell|run|../scripts/backup-properties.sh
+
+#Break the topology
+Use historicalDB free properties|shell|run|../scripts/load-properties.sh ../properties/no-smcHistoricalDb.properties
+
+#Start the topology
+Start small-products for test|shell|run|../scripts/start-bos.sh product-small
+
+#publish messages to a queue
+Publish all xml messages|jms|publish|cmb.cibtech.na.smc_160829_isgcloud.ABS|only-good.xml
+
+#Verify that all messages are consumed
+#It is okay if some of theese fail, due to processing time in large loads
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"138260714"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"150195227"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"150514099"}|600
+
+#Verify counts in failure
+Verify 0 messages in db|mongo|count|smcHistoricalDb|product|0|{}
+Verify 9244 messages in failedMessages|mongo|count|failedMessages|smcFailedMessages|9244|{}
+Verify 9244 messages in smcdb|mongo|count|smcdb|product|9244|{}
+
+#Stop the topology
+Stop the topology|shell|run|../scripts/stop-bos.sh product-small
+
+#Remove all of the failed messages for PRODUCT, they are known bad anyways
+Remove failed PRODUCT|mongo|remove|failedMessages|smcFailedMessages|{"Type":"PRODUCT"}
+
+#Install no smcdb properties
+Install correct properties|shell|run|../scripts/load-properties.sh ../properties/no-smcdb.properties
+
+#Restart the topology
+Start small-products for test|shell|run|../scripts/start-bos.sh product-small
+
+#publish a few more messages, so we have bad xml that's valid
+Publish smcdb miss messages|jms|publish|cmb.cibtech.na.smc_160829_isgcloud.ABS|smcdb-fail.xml
+
+#Wait for messages to stop processing
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"98572177","Type":"PRODUCT"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"12680143","Type":"P
+RODUCT"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"150060330","Type":"P
+RODUCT"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"150149037","Type":"P
+RODUCT"}|600
+Verify exists failed ObjectId|mongo|exists|failedMessages|smcFailedMessages|{"ObjectId":"150343828","Type":"P
+RODUCT"}|600
+
+#Stop the topology
+Stop small products|shell|run|../scripts/stop-bos.sh product-small
+
+#run the kestrel topology
+Run Kestrel Topology|shell|run|../scripts/start-bos.sh product lab7-dl380-11
+
+#Run the failure pump
+Run smcFailedMessagePump|shell|run|../scripts/start-pump.sh SmcFailJournal
+
+#Verify all records are pushed to db
+Verify exists _id|mongo|exists|smcHistoricalDb|product|{"id":"417062831"}|600
+Verify exists _id|mongo|exists|smcHistoricalDb|product|{"id":"722591051"}|600
+Verify exists _id|mongo|exists|smcHistoricalDb|product|{"id":"990415051"}|600
+
+#Verify counts are correct
+#Unless we figure out how to 'fix' failedMessages to seed good xml for bad
+Verify counts 9244 + 666|mongo|count|smcHistoricalDb|product|9910|{}
+#Consumed messages should be removed from failed messages
+Verify failed messages empty|mongo|count|failedMessages|smcFailedMessages|0|{}
+
+#shutdown the pump
+Stop pump|shell|run|../scripts/stop-pump.sh
+
+#stop topology
+Stop kestrel topology|shell|run|../scripts/stop-bos.sh product
+
+#restore old properties
+Restore old properties|shell|run|../scripts/restore-properties.sh
+\end{verbatim}
+\end{scriptsize}
+% Emacs 24.3.1 (Org mode 8.0)
+\end{document}

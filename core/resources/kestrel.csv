@@ -1,0 +1,13 @@
+# Kestrel!
+send text|kestrel|publish|conna|testa|resources/xmldir
+peek pass|kestrel|peek|conna|testa|100|kitty
+consume pass|kestrel|consume|conna|testa|5|100|kitty
+peek fail|kestrel|peek|conna|testa|100|cats
+consume fail|kestrel|consume|conna|testa|5|100|cats
+
+send binary|kestrel|bin-publish|connb|testb|resources/xmls.xml
+consume binary|kestrel|bin-consume|connb|testb|1|100
+consume binary fail|kestrel|bin-consume|connb|testb|1|100
+
+delete|kestrel|delete|conna|testa
+delete|kestrel|delete|connb|testb

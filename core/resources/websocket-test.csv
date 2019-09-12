@@ -1,0 +1,24 @@
+open one|websocket|open|one|:8181/|hi there!
+
+read one|websocket|receive|one|1|60|hi|there
+
+open two|websocket|open|two||me
+
+write two|websocket|send|two|yo
+
+write two|websocket|send|two|hi
+
+read two|websocket|receive|two|3|60|hi|yo
+
+write two|websocket|send|two|hick
+
+write two|websocket|send|two|jive
+
+#the next one should fail
+read two|websocket|receive|two|2|60|hi|yo
+
+close one|websocket|close|one
+
+cause an error|websocket|send|one|kitty
+
+read two|websocket|receive|two|5|30|

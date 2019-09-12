@@ -1,0 +1,18 @@
+|comment|comment|identifier|url|code|id|regex
+Should preserve|rest|get||http://ip.jsontest.com/|||200|\|nope
+
+#Should pass|rest|get||http://ip.jsontest.com/|||200|":|"71|\{
+Should fail|rest|get||http://ip.jsontest.com/|||200|Lucky rabbit
+Should fail|rest|get||http://ip.jsontest.com/|||200|":|"71|\{|Lucky Rabbit
+Expected to pass|rest|get||http://ip.jsontest.com/|||200
+
+Should run|rest|get|alias|resources/|||200|grr
+Should run|rest|get|alias|resources/grr/|||200|.mkv
+
+Should run|rest|get||@resources/testfile2.url|||200|
+Should run|rest|get||@resources/testfile.url|||200|
+
+Should run|rest|get|alias|resources/|||200|
+Should run|rest|get|alias|resources/grr/|||200|
+
+
